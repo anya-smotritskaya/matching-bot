@@ -53,7 +53,14 @@ def run_matching():
         for p_idx, proj in projects.iterrows():
             # Берем текст описания проекта. Убедись, что в твоей таблице колонка называется "Описание"
             # Если называется иначе (например "Description") - поменяй здесь.
-            project_text = str(proj.get('Описание', '')) + " " + str(proj.get('ЦУР_проекта', ''))
+                    # Собираем текст проекта из ВСЕХ информативных колонок
+        project_name = str(proj.get('Название', ''))
+        project_sdg = str(proj.get('Цель (SDG)', ''))
+        project_skills = str(proj.get('Требуемые навыки (Теги)', ''))
+        project_desc = str(proj.get('Описание', ''))
+        
+        # Склеиваем в один текстовый "паспорт проекта"
+        project_text = f"{project_name} {project_sdg} {project_skills} {project_desc}"
             
             # Магия TF-IDF: создаем "облако смыслов" из двух текстов
             vectorizer = TfidfVectorizer()
