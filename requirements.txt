@@ -1,0 +1,4 @@
+gspread
+pandas
+scikit-learn
+oauth2client
