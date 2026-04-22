@@ -39,8 +39,7 @@ def run_matching():
     # 5. Обрабатываем каждого новенького
     for index, cand in new_candidates.iterrows():
         
-        # --- ВАЖНО: Здесь мы собираем текст из анкеты кандидата ---
-        # Берем поля: Мотивация (открытый вопрос), Сферы интересов, Цели ЦУР
+        # --- Собираем текст из анкеты кандидата ---
         motivation = str(cand.get('Опишите вашу мотивацию и вклад, который вы хотите внести', ''))
         spheres = str(cand.get('В каких сферах у вас есть опыт или интересы?', ''))
         sdg = str(cand.get('Какие Цели устойчивого развития (ЦУР) вам наиболее близки?', ''))
@@ -51,16 +50,14 @@ def run_matching():
         # --- Сравниваем с каждым проектом из базы ---
         similarities = []
         for p_idx, proj in projects.iterrows():
-            # Берем текст описания проекта. Убедись, что в твоей таблице колонка называется "Описание"
-            # Если называется иначе (например "Description") - поменяй здесь.
-                    # Собираем текст проекта из ВСЕХ информативных колонок
-        project_name = str(proj.get('Название', ''))
-        project_sdg = str(proj.get('Цель (SDG)', ''))
-        project_skills = str(proj.get('Требуемые навыки (Теги)', ''))
-        project_desc = str(proj.get('Описание', ''))
-        
-        # Склеиваем в один текстовый "паспорт проекта"
-        project_text = f"{project_name} {project_sdg} {project_skills} {project_desc}"
+            # Собираем текст проекта из ВСЕХ информативных колонок
+            project_name = str(proj.get('Название', ''))
+            project_sdg = str(proj.get('Цель (SDG)', ''))
+            project_skills = str(proj.get('Требуемые навыки (Теги)', ''))
+            project_desc = str(proj.get('Описание', ''))
+            
+            # Склеиваем в один текстовый "паспорт проекта"
+            project_text = f"{project_name} {project_sdg} {project_skills} {project_desc}"
             
             # Магия TF-IDF: создаем "облако смыслов" из двух текстов
             vectorizer = TfidfVectorizer()
@@ -69,24 +66,22 @@ def run_matching():
                 # Считаем косинусное сходство (от 0 до 1)
                 score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
             except:
-                score = 0 # Если текст пустой или ошибка - сходство 0
+                score = 0  # Если текст пустой или ошибка - сходство 0
                 
             similarities.append(score)
             
         # 6. Находим индексы ТОП-3 проектов
-        # Превращаем в массив numpy для удобства сортировки
         sim_array = np.array(similarities)
-        top_indices = sim_array.argsort()[-3:][::-1] # Сортируем и берем последние 3
+        top_indices = sim_array.argsort()[-3:][::-1]  # Сортируем и берем последние 3
         
         # 7. Записываем результат в лист рекомендаций
-        # Если нашли хотя бы один проект с ненулевым сходством
         row_to_add = [cand['Email']]
         for idx in top_indices:
             proj_name = projects.iloc[idx]['Название']
-            proj_country = projects.iloc[idx]['Страна']
+            proj_country = projects.iloc[idx]['Страны (примеры)']
             row_to_add.append(f"{proj_name} ({proj_country})")
             
-        # Если проектов меньше 3, добиваем пустыми строками, чтобы не сломать таблицу
+        # Если проектов меньше 3, добиваем пустыми строками
         while len(row_to_add) < 4:
             row_to_add.append("Не найдено")
             
