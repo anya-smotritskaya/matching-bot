@@ -50,7 +50,7 @@ def run_matching():
         # --- Сравниваем с каждым проектом из базы ---
         similarities = []
         for p_idx, proj in projects.iterrows():
-            # Собираем текст проекта из ВСЕХ информативных колонок
+            # Собираем текст проекта
             project_name = str(proj.get('Название', ''))
             project_sdg = str(proj.get('Цель (SDG)', ''))
             project_skills = str(proj.get('Требуемые навыки (Теги)', ''))
@@ -59,27 +59,38 @@ def run_matching():
             # Склеиваем в один текстовый "паспорт проекта"
             project_text = f"{project_name} {project_sdg} {project_skills} {project_desc}"
             
-            # Магия TF-IDF: создаем "облако смыслов" из двух текстов
+            # Магия TF-IDF
             vectorizer = TfidfVectorizer()
             try:
                 tfidf_matrix = vectorizer.fit_transform([candidate_text, project_text])
-                # Считаем косинусное сходство (от 0 до 1)
                 score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
             except:
-                score = 0  # Если текст пустой или ошибка - сходство 0
+                score = 0
                 
             similarities.append(score)
-            
-        # 6. Находим индексы ТОП-3 проектов
-        sim_array = np.array(similarities)
-        top_indices = sim_array.argsort()[-3:][::-1]  # Сортируем и берем последние 3
         
-        # 7. Записываем результат в лист рекомендаций
+        # 6. НОРМАЛИЗАЦИЯ: превращаем сырые scores в проценты
+        sim_array = np.array(similarities)
+        max_score = sim_array.max()
+        
+        if max_score > 0:
+            # Топ-1 всегда 100%, остальные пропорционально
+            normalized = (sim_array / max_score) * 100
+        else:
+            normalized = np.zeros_like(sim_array)
+        
+        # 7. Находим индексы ТОП-3 проектов
+        top_indices = normalized.argsort()[-3:][::-1]  # Сортируем по убыванию
+        
+        # 8. Записываем результат в лист рекомендаций
+        # Формат: Email, Проект1 (Страна) — 100%, Проект2 (Страна) — 85%, Проект3 (Страна) — 67%
         row_to_add = [cand['Email']]
+        
         for idx in top_indices:
             proj_name = projects.iloc[idx]['Название']
             proj_country = projects.iloc[idx]['Страны (примеры)']
-            row_to_add.append(f"{proj_name} ({proj_country})")
+            match_pct = int(round(normalized[idx]))
+            row_to_add.append(f"{proj_name} ({proj_country}) — {match_pct}%")
             
         # Если проектов меньше 3, добиваем пустыми строками
         while len(row_to_add) < 4:
